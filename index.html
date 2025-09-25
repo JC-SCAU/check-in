@@ -27,7 +27,7 @@
             background-color: #fff;
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 10px;
+            gap: 6px;
             margin-top: 20px;
 
         }
@@ -63,8 +63,9 @@
             right: 0;
             bottom: 0;
             margin: auto;
-            width: 50%;
-            height: 80%;
+            width: 65%;
+            aspect-ratio: 1 / 1;
+
             border: 2px solid #007bff;
             border-radius: 50%;
         }
@@ -125,6 +126,24 @@
         Work-Days: <span id="actualWorkdays">0</span> <br>
         Check-In: <span id="workdays">0</span> / <span id="target">0</span>
     </div>
+
+
+    <h2>IndexedDB ↔ localStorage 同步演示</h2>
+    <p id="wechat-status">检测环境中...</p>
+
+    <div>
+        <input type="text" id="key" placeholder="输入 localStorage key">
+        <input type="text" id="value" placeholder="输入 localStorage value">
+        <button onclick="setLocalStorage()">写入 localStorage 并备份</button>
+    </div>
+
+    <button onclick="showLocalStorage()">查看当前 localStorage</button>
+    <button onclick="backupLocalStorage()"> localStorage 备份</button>
+
+    <h3>日志输出：</h3>
+    <div class="log" id="log"></div>
+
+
     <!-- Generate days dynamically -->
     <script>
         let holidayMode = false;
@@ -216,6 +235,7 @@
             });
             localStorage.setItem(`checkedDays-${key}`, JSON.stringify(checkedDays));
             localStorage.setItem(`holidayDays-${key}`, JSON.stringify(holidayDays));
+            backupLocalStorageToDB()
         }
 
         function loadFromLocalStorage(year, month) {
@@ -308,6 +328,134 @@
         document.body.insertBefore(prevButton, document.body.firstChild);
 
         renderCalendar(currentYear, currentMonth);
+
+        /** ----------- 工具函数：输出日志 ----------- */
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${time}] ${msg}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg);
+        }
+
+        /** ----------- 1. 检测是否在微信中 ----------- */
+        function isWeChat() {
+            const ua = window.navigator.userAgent.toLowerCase();
+            return ua.includes('micromessenger');
+        }
+
+        /** ----------- 2. IndexedDB 工具类 ----------- */
+        class IndexedDBHelper {
+            constructor(dbName = 'MyAppDB', storeName = 'storageBackup') {
+                this.dbName = dbName;
+                this.storeName = storeName;
+            }
+
+            // 打开数据库
+            openDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, 1);
+
+                    // 首次或升级版本时初始化
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            db.createObjectStore(this.storeName, { keyPath: 'id' });
+                        }
+                    };
+
+                    request.onsuccess = (event) => resolve(event.target.result);
+                    request.onerror = (event) => reject(event.target.error);
+                });
+            }
+
+            // 保存数据
+            async save(key, value) {
+                const db = await this.openDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction([this.storeName], 'readwrite');
+                    const store = tx.objectStore(this.storeName);
+                    store.put({ id: key, value });
+                    tx.oncomplete = () => resolve(true);
+                    tx.onerror = (e) => reject(e.target.error);
+                });
+            }
+
+            // 读取数据
+            async get(key) {
+                const db = await this.openDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction([this.storeName], 'readonly');
+                    const store = tx.objectStore(this.storeName);
+                    const request = store.get(key);
+                    request.onsuccess = () => resolve(request.result ? request.result.value : null);
+                    request.onerror = (e) => reject(e.target.error);
+                });
+            }
+        }
+
+        const dbHelper = new IndexedDBHelper();
+
+        /** ----------- 3. 从 IndexedDB → 恢复到 localStorage ----------- */
+        async function restoreLocalStorageFromDB() {
+            const data = await dbHelper.get('localStorageBackup');
+            if (data) {
+                log('从 IndexedDB 恢复数据: ' + data);
+                try {
+                    const parsed = JSON.parse(data);
+                    for (const key in parsed) {
+                        localStorage.setItem(key, parsed[key]);
+                    }
+                } catch (e) {
+                    log('恢复失败，数据格式错误：' + e.message);
+                }
+            } else {
+                log('IndexedDB 中没有备份数据');
+            }
+        }
+
+        /** ----------- 4. 从 localStorage → 备份到 IndexedDB ----------- */
+        async function backupLocalStorageToDB() {
+            const obj = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                obj[key] = localStorage.getItem(key);
+            }
+            await dbHelper.save('localStorageBackup', JSON.stringify(obj));
+            log('已备份到 IndexedDB: ' + JSON.stringify(obj));
+        }
+
+        /** ----------- 5. 页面操作函数 ----------- */
+        async function setLocalStorage() {
+
+            await backupLocalStorageToDB();
+        }
+
+        async function showLocalStorage() {
+            const data = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                data[key] = localStorage.getItem(key);
+            }
+            log('当前 localStorage: ' + JSON.stringify(data));
+        }
+
+        async function backupLocalStorage() {
+            await backupLocalStorageToDB();
+        }
+
+        /** ----------- 6. 页面加载时执行 ----------- */
+        window.addEventListener('DOMContentLoaded', async () => {
+            const status = document.getElementById('wechat-status');
+            if (isWeChat()) {
+                status.textContent = '当前在微信浏览器中';
+                log('检测到微信浏览器，尝试恢复数据...');
+                await restoreLocalStorageFromDB();
+            } else {
+                status.textContent = '非微信浏览器';
+                log('当前不是微信环境，无需自动恢复');
+            }
+        });
     </script>
 </body>
 
