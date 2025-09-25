@@ -31,7 +31,7 @@
             padding: 5px;
             background-color: #fff;
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: repeat(7, minmax(0, 1fr));
             gap: 6px;
             margin-top: 20px;
 
@@ -68,7 +68,7 @@
             right: 0;
             bottom: 0;
             margin: auto;
-            width: 65%;
+            height: 80%;
             aspect-ratio: 1 / 1;
 
             border: 2px solid #007bff;
@@ -109,14 +109,10 @@
             color: white;
             border: none;
             padding: 10px 20px;
-            margin: 10px;
-            border-radius: 13px;
+            margin: 5px;
+            border-radius: 20px;
             cursor: pointer;
             font-size: 1em;
-        }
-
-        button:hover {
-            background-color: #0056b3;
         }
     </style>
 </head>
