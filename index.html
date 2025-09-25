@@ -128,7 +128,7 @@
     </div>
 
 
-    <h2>IndexedDB ↔ localStorage 同步演示</h2>
+    <!-- <h2>IndexedDB ↔ localStorage 同步演示</h2>
     <p id="wechat-status">检测环境中...</p>
 
     <div>
@@ -138,10 +138,10 @@
     </div>
 
     <button onclick="showLocalStorage()">查看当前 localStorage</button>
-    <button onclick="backupLocalStorage()"> localStorage 备份</button>
+    <button onclick="backupLocalStorage()"> localStorage 备份</button> -->
 
-    <h3>日志输出：</h3>
-    <div class="log" id="log"></div>
+    <!-- <h3>日志输出：</h3> -->
+    <!-- <div class="log" id="log"></div> -->
 
 
     <!-- Generate days dynamically -->
@@ -332,10 +332,10 @@
         /** ----------- 工具函数：输出日志 ----------- */
         function log(msg) {
             const logDiv = document.getElementById('log');
+            if (!logDiv) return
             const time = new Date().toLocaleTimeString();
             logDiv.innerHTML += `[${time}] ${msg}<br>`;
             logDiv.scrollTop = logDiv.scrollHeight;
-            console.log(msg);
         }
 
         /** ----------- 1. 检测是否在微信中 ----------- */
