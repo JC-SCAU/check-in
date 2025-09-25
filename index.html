@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Record</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Arial', sans-serif;
+            margin: 0;
+            background-color: #e9ecef;
+            min-height: 100vh;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2em;
+            margin: 20px 0 10px 0;
+            color: #007bff;
+        }
+
+        .calendar {
+            border-radius: 16px;
+            padding: 10px;
+            background-color: #fff;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin: 10px auto 0 auto;
+            max-width: 480px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+        }
+
+        .day {
+            padding: 12px 0;
+            border-radius: 13px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: background 0.2s, box-shadow 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            cursor: pointer;
+        }
+
+        .day input {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .day span {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .day.checked {
+            background: #d1e7dd;
+            border: 2px solid #007bff;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.08);
+            position: relative;
+        }
+
+        .day.checked::after {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            right: 10%;
+            bottom: 10%;
+            border: 2px solid #007bff;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .target {
+            margin: 18px auto 0 auto;
+            font-size: 1.1em;
+            text-align: center;
+            max-width: 480px;
+        }
+
+        .target input {
+            background-color: #f0f8ff;
+            border: 2px solid #007bff;
+            border-radius: 13px;
+            padding: 6px 10px;
+            font-size: 1em;
+            color: #333;
+            margin-bottom: 8px;
+            width: 60%;
+            box-sizing: border-box;
+        }
+
+        .target input:focus {
+            outline: none;
+            border-color: #0056b3;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.2);
+        }
+
+        .weekday {
+            font-weight: bold;
+            text-align: center;
+            padding: 8px 0;
+            background: #e2e6ea;
+            border-radius: 8px;
+            font-size: 0.95em;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            margin: 10px 6px;
+            border-radius: 13px;
+            cursor: pointer;
+            font-size: 1em;
+            box-shadow: 0 1px 4px rgba(0,123,255,0.07);
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.3em;
+                margin: 12px 0 6px 0;
+            }
+            .calendar {
+                max-width: 98vw;
+                gap: 4px;
+                padding: 4px;
+            }
+            .day {
+                padding: 8px 0;
+                font-size: 0.95em;
+            }
+            .target {
+                font-size: 1em;
+                max-width: 98vw;
+            }
+            .target input {
+                font-size: 0.95em;
+                width: 90%;
+            }
+            button {
+                font-size: 0.95em;
+                padding: 8px 12px;
+                margin: 8px 2px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Monthly Record</h1>
+    <div class="calendar"></div>
+    <div class="target">
+        Check-In: <span id="workdays">0</span> / <span id="target">0</span>
+    </div>
+    <!-- Generate days dynamically -->
+    <script>
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+
+        const calendar = document.querySelector('.calendar');
+        const workdaysElement = document.getElementById('workdays');
+        const targetElement = document.getElementById('target');
+        let totalWorkdays = 0;
+
+        const totalWorkdaysInput = document.createElement('input');
+        totalWorkdaysInput.type = 'number';
+        totalWorkdaysInput.id = 'totalWorkdaysInput';
+        totalWorkdaysInput.placeholder = 'Enter total workdays';
+        totalWorkdaysInput.addEventListener('input', () => {
+            totalWorkdays = parseInt(totalWorkdaysInput.value) || 0;
+            updateTarget();
+            saveToLocalStorage(currentYear, currentMonth);
+        });
+        document.querySelector('.target').prepend(totalWorkdaysInput);
+
+        const title = document.querySelector('h1');
+        function updateTitle(year, month) {
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            title.textContent = `${year} - ${monthNames[month]}`;
+        }
+
+        updateTitle(currentYear, currentMonth);
+
+        function updateTarget() {
+            const target = (totalWorkdays * 0.4).toFixed();
+            targetElement.textContent = target;
+        }
+
+        function renderCalendar(year, month) {
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDayOfWeek = new Date(year, month, 1).getDay();
+            calendar.innerHTML = '';
+
+            // Add weekday headers
+            const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            weekdays.forEach(day => {
+                const weekdayDiv = document.createElement('div');
+                weekdayDiv.className = 'weekday';
+                weekdayDiv.textContent = day;
+                calendar.appendChild(weekdayDiv);
+            });
+
+            // Add empty cells for days before the first day of the month
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'day empty';
+                calendar.appendChild(emptyDiv);
+            }
+
+            // Add days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'day';
+                dayDiv.dataset.day = `${year}-${month + 1}-${day}`;
+                dayDiv.innerHTML = `<span>${day}</span>`;
+                dayDiv.addEventListener('click', () => toggleCheckIn(dayDiv));
+                calendar.appendChild(dayDiv);
+            }
+
+            loadFromLocalStorage(year, month);
+        }
+
+        function saveToLocalStorage(year, month) {
+            const checkedDays = [];
+            document.querySelectorAll('.day.checked').forEach(day => {
+                checkedDays.push(day.dataset.day);
+            });
+            localStorage.setItem(`checkedDays-${year}-${month}`, JSON.stringify(checkedDays));
+            localStorage.setItem(`totalWorkdays-${year}-${month}`, totalWorkdays);
+        }
+
+        function loadFromLocalStorage(year, month) {
+            const checkedDays = JSON.parse(localStorage.getItem(`checkedDays-${year}-${month}`)) || [];
+            totalWorkdays = parseInt(localStorage.getItem(`totalWorkdays-${year}-${month}`)) || 0;
+            totalWorkdaysInput.value = totalWorkdays;
+            workdaysElement.textContent = checkedDays.length;
+            updateTarget();
+
+            checkedDays.forEach(day => {
+                const dayDiv = document.querySelector(`.day[data-day="${day}"]`);
+                if (dayDiv) {
+                    dayDiv.classList.add('checked');
+                }
+            });
+        }
+
+        function toggleCheckIn(dayDiv) {
+            if (dayDiv.classList.contains('checked')) {
+                dayDiv.classList.remove('checked');
+            } else {
+                dayDiv.classList.add('checked');
+            }
+            workdaysElement.textContent = document.querySelectorAll('.day.checked').length;
+            saveToLocalStorage(currentYear, currentMonth);
+        }
+
+        const prevButton = document.createElement('button');
+        prevButton.textContent = 'Previous Month';
+        prevButton.addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar(currentYear, currentMonth);
+            updateTitle(currentYear, currentMonth);
+        });
+
+        const nextButton = document.createElement('button');
+        nextButton.textContent = 'Next Month';
+        nextButton.addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar(currentYear, currentMonth);
+            updateTitle(currentYear, currentMonth);
+        });
+
+        document.body.insertBefore(nextButton, document.body.firstChild);
+        document.body.insertBefore(prevButton, document.body.firstChild);
+
+        renderCalendar(currentYear, currentMonth);
+    </script>
+</body>
+
+</html>
